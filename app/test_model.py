@@ -29,12 +29,18 @@ def load_model_and_tokenizer(model_dir, device):
     return model, tokenizer
 
 def generate_text(model, tokenizer, input_text):
-    inputs = tokenizer.encode(input_text, return_tensors='pt').to(model.device)
+    try:
+        inputs = tokenizer.encode(input_text, return_tensors='pt').to(model.device)
 
-    output_ids = model.generate(inputs, max_length = 50, do_sample = True, top_p = 0.95, top_k = 50, num_return_sequences = 2)
-    output_text = tokenizer.decode(output_ids[0], skip_special_tokens = True)
+        output_ids = model.generate(inputs, max_length = 50, do_sample = True, top_p = 0.95, top_k = 50, num_return_sequences = 2)
+        output_text = tokenizer.decode(output_ids[0], skip_special_tokens = True)
 
-    return output_text
+        return output_text
+    
+    except RuntimeError as rue:
+        print(f"RuntimeError : {rue}")
+        return None
+    
 
 if __name__ == "__main__":
     # load the model
