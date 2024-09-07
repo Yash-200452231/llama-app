@@ -4,11 +4,21 @@ import argparse
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 
+
+import warnings
+
+# Suppress all warnings
+warnings.filterwarnings("ignore")
+
+# Suppress specific warnings by category
+# Example: warnings.filterwarnings("ignore", category=UserWarning)
+
+
 with open(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'config.json'))) as config_file:
     config = json.load(config_file)
 MODEL_DIR = os.path.join(config["base_dir"], config["model_dir"])
 Q_MODEL_DIR = os.path.join(config["base_dir"], config["q_model_dir"])
-#device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def save_quantized_model(model_dir, save_dir):
     """
@@ -45,11 +55,14 @@ def test_model():
         if tokenizer.pad_token is None:
             tokenizer.add_special_tokens({'pad_token' : '<|PAD|>'})
             
-        model = AutoModelForCausalLM.from_pretrained(Q_MODEL_DIR)
+        model = AutoModelForCausalLM.from_pretrained(
+            Q_MODEL_DIR, 
+            device_map = device
+            )
         #model.config.pad_token_id = tokenizer.pad_token_id
         # Running Inference on a test query
         query = "Hello"
-        input_ids = tokenizer.encode(query, return_tensors="pt").to(model.device)
+        input_ids = tokenizer.encode(query, return_tensors="pt").to(model.device) # type: ignore
         #attention_mask = torch.ones(input_ids.shape).to(model.device)
         pad_token_id = tokenizer.pad_token_id
 
@@ -67,7 +80,7 @@ def test_model():
     except UserWarning as uwarning:
         pass
 
-    print(f"The model ran the test successfully and is ready to be used!.\nInput: {query}\nOutput text: {output}")
+    print(f"The model ran the test successfully and is ready to be used!.\nTest Prompt: {query}\nTest Output text: {output}")
 
 
 
