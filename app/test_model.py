@@ -91,7 +91,7 @@ def chat(model, tokenizer):
             memory.chat_memory.add_ai_message(ai_response)
         print(f"AI: {ai_response}")
 
-    print(f"##### Printing History again ####\n{history}")
+    print(f"\n\n\n\n\n\n##### Printing History again ####\n{history}")
 
 def generate_text_stub(model, tokenizer, input_text):
     return "This is a stub response"

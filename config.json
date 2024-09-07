@@ -1,4 +1,5 @@
 {
     "base_dir": "D:\\projects\\llama_project_trial",
-    "model_dir": "minitron"
+    "model_dir": "minitron",
+    "q_model_dir": "q_minitron"
 }
