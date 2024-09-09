@@ -1,12 +1,6 @@
 import os
 import json
-"""
-import warnings
-warnings.filterwarnings(
-    "ignore",
-    message="The attention mask and the pad token id were not set"
-)
-"""
+
 
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
@@ -15,10 +9,14 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from langchain.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory 
 
+import warnings
+
+# Suppress all warnings
+warnings.filterwarnings("ignore")
 
 with open(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'config.json'))) as config_file:
     config = json.load(config_file)
-MODEL_DIR = os.path.join(config["base_dir"], config["model_dir"])
+MODEL_DIR = os.path.join(config["base_dir"], config["q_model_dir"])
 
 
 def load_model_and_tokenizer(model_dir, device):
@@ -29,18 +27,12 @@ def load_model_and_tokenizer(model_dir, device):
     """
     # loading tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_dir)
-
-    # Quantization config
-    qnt_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_compute_dtype=torch.float16,
-        bnb_4bit_quant_type="nf4"
-    )
-
+    if tokenizer.pad_token is None:
+            tokenizer.add_special_tokens({'pad_token' : '<|PAD|>'})
+    
     # Loading quantized model
     model = AutoModelForCausalLM.from_pretrained(
         model_dir,
-        quantization_config = qnt_config,
         device_map = device
     )
 
@@ -54,7 +46,7 @@ def initialize_conversation_dependencies():
     """
     
     # Memory for the conversation
-    memory = ConversationBufferMemory()
+    memory = ConversationBufferMemory(memory_key='history')
 
     # template and prompt for the conversation
     template = "History: {history}\n\nHuman: {input}\nAI: "
@@ -62,6 +54,9 @@ def initialize_conversation_dependencies():
 
     return prompt, memory
 
+def save_conversation_history(history, filename="conversation_history.txt"):
+    with open(filename, "w") as file:
+        file.write(history)
 
 def chat(model, tokenizer):
 
@@ -70,48 +65,47 @@ def chat(model, tokenizer):
 
     print("Start chatting! (Type 'exit' to end the conversation)")
     
-    
-    history = ''
     while True:
         user_input = input("Human: ")
+        
         
         if user_input.lower() == "exit":
             break
         elif user_input.strip() == "":
             continue
         
-        prompt_text = prompt.format(history=history, input=user_input)
-
-        ai_response = generate_text(model, tokenizer, prompt_text)
-        
-        # Saving the conversation..
-        memory.chat_memory.add_user_message(user_input)
-        history += "Human: "+ user_input + "\n" + "AI: "+ ai_response + "\n"
-        if ai_response != None:
-            memory.chat_memory.add_ai_message(ai_response)
+        history = memory.load_memory_variables({})["history"]
+        #ai_response = generate_text(model, tokenizer, prompt, history, user_input)
+        ai_response = generate_text_stub(model, tokenizer, prompt, history, user_input)
         print(f"AI: {ai_response}")
 
-    print(f"\n\n\n\n\n\n##### Printing History again ####\n{history}")
+        # Add messages to memory
+        memory.chat_memory.add_user_message(user_input)
+        memory.chat_memory.add_ai_message(ai_response)
+        
+    #print(f"\n\n\n\n\n\n##### Printing History again ####\n{history}")
+    save_conversation_history(history)
+    print("Conversation history saved!")
 
-def generate_text_stub(model, tokenizer, input_text):
+def generate_text_stub(model, tokenizer, prompt, history, user_input):
     return "This is a stub response"
 
-def generate_text(model, tokenizer, input_text)->str:
+def generate_text(model, tokenizer, prompt, history, user_input)->str:
     """
     Uses the model and tokenizer to generate text based on some input_text.
 
     Returns: Text.
     """
+    input_text = prompt.format(history= history, input= user_input)
     try:
         inputs = tokenizer.encode(input_text, return_tensors='pt').to(model.device)
-        attention_mask = torch.ones(inputs.shape, device=device)
-        pad_token_id = tokenizer.eos_token_id
+        #attention_mask = torch.ones(inputs.shape, device=device)
+        pad_token_id = tokenizer.pad_token_id
 
         output_ids = model.generate(
             inputs,
-            attention_mask=attention_mask,
+            #attention_mask=attention_mask,
             pad_token_id=pad_token_id, 
-            #max_length=50, 
             max_new_tokens=50,
             do_sample=True, 
             top_p=0.95, 
