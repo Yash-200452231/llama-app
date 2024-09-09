@@ -1,6 +1,6 @@
 import os
 import json
-
+from datetime import datetime
 
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
@@ -14,9 +14,11 @@ import warnings
 # Suppress all warnings
 warnings.filterwarnings("ignore")
 
+# Loading all the necessary paths for various assets in the project directory
 with open(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'config.json'))) as config_file:
     config = json.load(config_file)
 MODEL_DIR = os.path.join(config["base_dir"], config["q_model_dir"])
+CONVERSATION_HISTORY_DIR = os.path.join(config["base_dir"], config["conversation_history_dir"])
 
 
 def load_model_and_tokenizer(model_dir, device):
@@ -49,13 +51,16 @@ def initialize_conversation_dependencies():
     memory = ConversationBufferMemory(memory_key='history')
 
     # template and prompt for the conversation
-    template = "History: {history}\n\nHuman: {input}\nAI: "
+    template = "You are a chatbot. Your job is to chat with the user based on the current input which will be marked by 'Human:'. You should use the 'History:' as context to best answer the query in the current prompt.\nKeep the response simple and concise, and only respond as per the turn.\n\nHistory: {history}\n\nHuman: {input}\nAI: "
     prompt = PromptTemplate(template=template, input_variables=["history","input"])
 
     return prompt, memory
 
-def save_conversation_history(history, filename="conversation_history.txt"):
-    with open(filename, "w") as file:
+def save_conversation_history(history):
+    #print(f"<{history}>")
+    filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    filepath = os.path.join(CONVERSATION_HISTORY_DIR, filename)
+    with open(filepath, "w") as file:
         file.write(history)
 
 def chat(model, tokenizer):
@@ -66,6 +71,8 @@ def chat(model, tokenizer):
     print("Start chatting! (Type 'exit' to end the conversation)")
     
     while True:
+        history = memory.load_memory_variables({})["history"]
+        #print(f"\n\n History : {history}")
         user_input = input("Human: ")
         
         
@@ -74,9 +81,9 @@ def chat(model, tokenizer):
         elif user_input.strip() == "":
             continue
         
-        history = memory.load_memory_variables({})["history"]
-        #ai_response = generate_text(model, tokenizer, prompt, history, user_input)
-        ai_response = generate_text_stub(model, tokenizer, prompt, history, user_input)
+        
+        ai_response = generate_text(model, tokenizer, prompt, history, user_input)
+        #ai_response = generate_text_stub(model, tokenizer, prompt, history, user_input)
         print(f"AI: {ai_response}")
 
         # Add messages to memory
