@@ -51,7 +51,7 @@ def initialize_conversation_dependencies():
     memory = ConversationBufferMemory(memory_key='history')
 
     # template and prompt for the conversation
-    template = "You are a chatbot. Your job is to chat with the user based on the current input which will be marked by 'Human:'. You should use the 'History:' as context to best answer the query in the current prompt.\nKeep the response simple and concise, and only respond as per the turn.\n\nHistory: {history}\n\nHuman: {input}\nAI: "
+    template = "###Instruction: You are a chatbot. Your job is to chat with the user based on the current input which will be marked by 'Human:'. You should use the 'History:' as context to best answer the query in the current prompt.\nKeep the response simple and concise, and only respond as per the turn.\n\n###History: {history}\n\n###Chat\nHuman: {input}\nAI: "
     prompt = PromptTemplate(template=template, input_variables=["history","input"])
 
     return prompt, memory
@@ -115,8 +115,10 @@ def generate_text(model, tokenizer, prompt, history, user_input)->str:
             pad_token_id=pad_token_id, 
             max_new_tokens=50,
             do_sample=True, 
-            top_p=0.95, 
-            top_k=100, 
+            top_p=0.9, 
+            temperature=0.7,
+            top_k=50, 
+            repetition_penalty=1.2,
             num_return_sequences=1)
         output_text = tokenizer.decode(output_ids[0], skip_special_tokens = True)
 
