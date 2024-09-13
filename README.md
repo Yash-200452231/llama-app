@@ -13,5 +13,5 @@ The methodology for developing this conversational AI chatbot involves several k
 4. Conversation History Saving: At the end of each session, the conversation history is saved to a file. This allows for easy tracking and analysis of interactions.
 
 **Upcoming**: 
-1. Instruction tuning model to improve coherence in responses.
+1. QLora adapter tuning with the base model to improve coherence in responses.
 2. Processing the interactions in real-time to create long-term memories which can be later used to reference during future interactions.
